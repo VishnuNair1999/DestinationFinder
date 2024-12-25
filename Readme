@@ -1,0 +1,137 @@
+# Search Screen Component Documentation
+
+## Overview
+The `SearchScreen` component is a React Native screen that allows users to search, filter, and sort a list of destinations. It includes features like offline support, pagination, and user-friendly sorting options.
+
+## Features
+- **Search Functionality:** Users can search destinations by name.
+- **Sorting Options:** Destinations can be sorted by name or population.
+- **Offline Support:** Utilizes cached data when offline.
+- **Pagination:** Dynamically loads more data as the user scrolls.
+
+## Code Explanation
+
+### Imports
+- `React`, `useState`, `useEffect`, `useMemo`, `useCallback`: Core React hooks for managing state, side effects, memoization, and performance optimization.
+- `View`, `Text`, `TextInput`, `StyleSheet`, `Alert`, `FlatList`, `TouchableOpacity`: React Native components for building the UI.
+- `NetInfo`: Detects network connectivity.
+- `AsyncStorage`: Handles offline data storage.
+- `useNavigation`: Provides navigation capabilities.
+- `Icon`: Displays vector icons.
+- `destinationsData`: Static data for destinations.
+
+### State Variables
+- `isOnline`: Tracks network connectivity status.
+- `searchQuery`: Holds the search input value.
+- `allDestinations`: Stores the complete list of destinations.
+- `currentPage`: Tracks the current page for pagination.
+- `sortOption`: Determines the sorting criteria.
+
+### Effect Hooks
+#### Network Connectivity
+
+useEffect(() => {
+  const unsubscribe = NetInfo.addEventListener((state) => {
+    setIsOnline(state.isConnected);
+  });
+
+  return () => {
+    unsubscribe();
+  };
+}, []);
+
+This hook listens for network connectivity changes and updates the `isOnline` state.
+
+#### Data Initialization
+
+useEffect(() => {
+  const initializeData = async () => {
+    try {
+      const cachedData = await AsyncStorage.getItem("destinations");
+      if (cachedData) {
+        setAllDestinations(JSON.parse(cachedData));
+      } else if (isOnline) {
+        await AsyncStorage.setItem(
+          "destinations",
+          JSON.stringify(destinationsData)
+        );
+        setAllDestinations(destinationsData);
+      } else {
+        Alert.alert(
+          "Offline Mode",
+          "No cached data available. Please connect to the internet."
+        );
+      }
+    } catch (error) {
+      console.error("Error initializing data:", error);
+    }
+  };
+
+  initializeData();
+}, [isOnline]);
+
+This hook initializes the data from local storage or static JSON data, falling back to alerts in offline mode if no data is available.
+
+### Memoized Variables
+#### Sorted Destinations
+
+const sortedDestinations = useMemo(() => {
+  return [...allDestinations].sort((a, b) => {
+    if (sortOption === "population") {
+      return b.population - a.population;
+    }
+    return a.name.localeCompare(b.name);
+  });
+}, [allDestinations, sortOption]);
+
+Sorts the destinations based on the selected sort option (by name or population).
+
+#### Filtered Destinations
+
+const filteredDestinations = useMemo(() => {
+  return sortedDestinations.filter((place) =>
+    place.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+}, [searchQuery, sortedDestinations]);
+
+Filters the destinations based on the search query.
+
+#### Paginated Destinations
+
+const paginatedDestinations = useMemo(() => {
+  const startIndex = 0;
+  const endIndex = currentPage * itemsPerPage;
+  return filteredDestinations.slice(startIndex, endIndex);
+}, [filteredDestinations, currentPage]);
+
+Limits the displayed destinations based on the current page.
+
+### Rendering Items
+
+const renderDestination = useCallback(({ item }) => {
+  return (
+    <View style={styles.item}>
+      <Text style={styles.name}>{item.name}</Text>
+      <Text style={styles.details}>
+        {item.country} - Population: {item.population}
+      </Text>
+    </View>
+  );
+}, []);
+
+Defines how each destination is displayed.
+
+### FlatList
+The `FlatList` component displays the paginated destinations and loads more data when the user scrolls to the end.
+
+## Styling
+The `StyleSheet` object defines the styling for all UI components. Key styles include:
+- **`container`**: Layout and padding for the screen.
+- **`searchContainer`**: Styles for the search bar.
+- **`sortOptions`**: Layout for sorting buttons.
+- **`item`**: Styles for individual destination items.
+
+## Offline Handling
+When the user is offline, a banner is displayed, and the app attempts to use cached data.
+
+
